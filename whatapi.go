@@ -112,7 +112,7 @@ func (s *Site) Logout() {
 }
 
 
-func (s *Site) CreateDownloadURL(id) {
+func (s *Site) CreateDownloadURL(id int) string {
 	params := url.Values{}
 	params.Set("action", "download")
 	params.Set("id", strconv.Itoa(id))

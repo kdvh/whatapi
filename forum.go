@@ -49,28 +49,28 @@ type CategoriesResponse struct {
 }
 
 type ForumResponse struct {
-	ForumName     string   `json"forumName"`
+	ForumName     string   `json:"forumName"`
 	SpecificRules []struct{
         ThreadID int `json:"threadID"`
         Thread string `json:"thread"`
     } `json:"specificRules"`
-	CurrentPage   int      `json"currentPage"`
-	Pages         int      `json"pages"`
+	CurrentPage   int      `json:"currentPage"`
+	Pages         int      `json:"pages"`
 	Threads       []struct {
-		TopicID        int    `json"topicId"`
-		Title          string `json"title"`
-		AuthorID       int    `json"authorId"`
-		AuthorName     string `json"authorName"`
-		Locked         bool   `json"locked"`
-		Sticky         bool   `json"sticky"`
-		PostCount      int    `json"postCount"`
-		LastID         int    `json"lastID"`
-		LastTime       string `json"lastTime"`
-		LastAuthorId   int    `json"lastAuthorId"`
-		LastAuthorName string `json"lastAuthorNam"`
-		LastReadPage   int    `json"lastReadPage"`
-		LastReadPostID int    `json"lastReadPostId"`
-		Read           bool   `json"read"`
+		TopicID        int    `json:"topicId"`
+		Title          string `json:"title"`
+		AuthorID       int    `json:"authorId"`
+		AuthorName     string `json:"authorName"`
+		Locked         bool   `json:"locked"`
+		Sticky         bool   `json:"sticky"`
+		PostCount      int    `json:"postCount"`
+		LastID         int    `json:"lastID"`
+		LastTime       string `json:"lastTime"`
+		LastAuthorId   int    `json:"lastAuthorId"`
+		LastAuthorName string `json:"lastAuthorNam"`
+		LastReadPage   int    `json:"lastReadPage"`
+		LastReadPostID int    `json:"lastReadPostId"`
+		Read           bool   `json:"read"`
 	} `json:"threads"`
 }
 

@@ -53,7 +53,7 @@ type ForumResponse struct {
 	SpecificRules []struct{
         ThreadID int `json:"threadID"`
         Thread string `json:"thread"`
-    } `json"specificRules"`
+    } `json:"specificRules"`
 	CurrentPage   int      `json"currentPage"`
 	Pages         int      `json"pages"`
 	Threads       []struct {

@@ -17,7 +17,7 @@ var (
 	ErrRequestFailed       = errors.New("Request failed")
 	ErrRequestFailedLogin  = errors.New("Request failed: not logged in")
 	ErrRequestFailedReason = func(err string) error { return fmt.Errorf("Request failed: %s", err) }
-	DebugMode              = true
+	DebugMode              = false
 )
 
 func buildQuery(action string, params url.Values) string {
@@ -110,7 +110,6 @@ func (s *Site) Logout() {
 	checkErr(err)
 	s.LoggedIn, s.Username, s.AuthKey, s.PassKey = false, "", "", ""
 }
-
 
 func (s *Site) CreateDownloadURL(id int) string {
 	params := url.Values{}
@@ -344,4 +343,3 @@ func (s *Site) GetSimilarArtists(id, limit int) SimilarArtists {
 	checkErr(err)
 	return similarArtists
 }
-

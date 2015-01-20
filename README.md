@@ -1,7 +1,7 @@
 whatapi
 =======
 
-A Go wrapper for the What.CD [AJAX API](https://github.com/WhatCD/Gazelle/wiki/JSON-API-Documentation)
+A Go wrapper for the What.CD [JSON API](https://github.com/WhatCD/Gazelle/wiki/JSON-API-Documentation)
 
 Example
 -------

@@ -19,8 +19,8 @@ type UserSearch struct {
 }
 
 type RequestsSearchResponse struct {
-	CurrentPage int `json:""`
-	Pages       int `json:""`
+	CurrentPage int `json:"currentPage"`
+	Pages       int `json:"pages"`
 	Results     []struct {
 		RequestID     int    `json:"requestId"`
 		RequestorID   int    `json:"requestorId"`
@@ -54,8 +54,8 @@ type RequestsSearchResponse struct {
 }
 
 type TorrentSearchResponse struct {
-	CurrentPage int `json:""`
-	Pages       int `json:""`
+	CurrentPage int `json:"currentPage"`
+	Pages       int `json:"pages"`
 	Results     []struct {
 		GroupID       int      `json:"groupId"`
 		GroupName     string   `json:"groupName"`
@@ -105,7 +105,7 @@ type TorrentSearchResponse struct {
 
 type UserSearchResponse struct {
 	CurrentPage int `json:"currentPage"`
-	Pages       int `json:"pages"`
+    Pages       int `json:"pages"`
 	Results     []struct {
 		UserID   int    `json:"userId"`
 		Username string `json:"username"`

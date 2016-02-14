@@ -6,21 +6,25 @@ A Go wrapper for the What.CD [JSON API](https://github.com/WhatCD/Gazelle/wiki/J
 Example
 -------
 ```Go
-        wcd := whatapi.NewSite("https://what.cd/")
-        wcd.Login("username", "password")
+        wcd, _ := whatapi.NewSite("https://what.cd/")
+        err := wcd.Login("username", "password")
 
-        account := wcd.GetAccount()
+        if err != nil {
+            log.Fatal(err)
+        }
+
+        // Get account info
+        account, _ := wcd.GetAccount()
         fmt.Println(account.Username)
 
-        user := wcd.GetUser(100)
-        fmt.Println(user.Username)
-
+        // Get PMs
         mailboxParams := url.Values{}
         mailboxParams.Set("type", "sentbox")
-        mailbox := wcd.GetMailbox(mailboxParams)
-        conversation := wcd.GetConversation(mailbox.Messages[0].ConvID)
+        mailbox, _ := wcd.GetMailbox(mailboxParams)
+        conversation, _ := wcd.GetConversation(mailbox.Messages[0].ConvID)
         fmt.Println(conversation.Messages[0].Body)
 
+        // Get torrent by ID and make url
         torrentParams := url.Values{}
         torrent := wcd.GetTorrent(31929409, torrentParams)
         fmt.Println(wcd.CreateDownloadURL(torrent.Torrent.ID))

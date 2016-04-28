@@ -1,24 +1,19 @@
 package whatapi
 
-type TopTenTorrents struct {
-	Status   string                 `json:"status"`
-	Error    string                 `json:"error"`
-	Response TopTenTorrentsResponse `json:"response"`
+type TopTenTags []struct {
+	Caption string `json:"caption"`
+	Tag     string `json:"tag"`
+	Limit   int    `json:"limit"`
+	Results []struct {
+		Name     string `json:"name"`
+		Uses     int    `json:"uses"`
+		PosVotes int    `json:"posVotes"`
+		NegVotes int    `json:"negVotes"`
+	} `json:"results"`
 }
 
-type TopTenTags struct {
-	Status   string             `json:"status"`
-	Error    string             `json:"error"`
-	Response TopTenTagsResponse `json:"response"`
-}
 
-type TopTenUsers struct {
-	Status   string              `json:"status"`
-	Error    string              `json:"error"`
-	Response TopTenUsersResponse `json:"response"`
-}
-
-type TopTenTorrentsResponse []struct {
+type TopTenTorrents []struct {
 	Caption string `json:"caption"`
 	Tag     string `json:"tag"`
 	Limit   int    `json:"limit"`
@@ -45,30 +40,18 @@ type TopTenTorrentsResponse []struct {
 	} `json:"results"`
 }
 
-type TopTenTagsResponse []struct {
+type TopTenUsers []struct {
 	Caption string `json:"caption"`
 	Tag     string `json:"tag"`
 	Limit   int    `json:"limit"`
 	Results []struct {
-		Name     string `json:"name"`
-		Uses     int    `json:"uses"`
-		PosVotes int    `json:"posVotes"`
-		NegVotes int    `json:"negVotes"`
-	} `json:"results"`
-}
-
-type TopTenUsersResponse []struct {
-	Caption string `json:"caption"`
-	Tag     string `json:"tag"`
-	Limit   int    `json:"limit"`
-	Results []struct {
-		ID         int    `json:"id"`
-		Username   string `json:"username"`
-		Uploaded   float64  `json:"uploaded"`
+		ID         int     `json:"id"`
+		Username   string  `json:"username"`
+		Uploaded   float64 `json:"uploaded"`
 		UpSpeed    float64 `json:"upSpeed"`
-		Downloaded float64  `json:"downloaded"`
+		Downloaded float64 `json:"downloaded"`
 		DownSpeed  float64 `json:"downSpeed"`
-		NumUploads int    `json:"numUploads"`
-		JoinDate   string `json:"joinDate"`
+		NumUploads int     `json:"numUploads"`
+		JoinDate   string  `json:"joinDate"`
 	} `json:"results"`
 }

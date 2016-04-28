@@ -1,24 +1,6 @@
 package whatapi
 
 type RequestsSearch struct {
-	Status   string                 `json:"status"`
-	Error    string                 `json:"error"`
-	Response RequestsSearchResponse `json:"response"`
-}
-
-type TorrentSearch struct {
-	Status   string                `json:"status"`
-	Error    string                `json:"error"`
-	Response TorrentSearchResponse `json:"response"`
-}
-
-type UserSearch struct {
-	Status   string             `json:"status"`
-	Error    string             `json:"error"`
-	Response UserSearchResponse `json:"response"`
-}
-
-type RequestsSearchResponse struct {
 	CurrentPage int `json:"currentPage"`
 	Pages       int `json:"pages"`
 	Results     []struct {
@@ -53,7 +35,7 @@ type RequestsSearchResponse struct {
 	} `json:"results"`
 }
 
-type TorrentSearchResponse struct {
+type TorrentSearch struct {
 	CurrentPage int `json:"currentPage"`
 	Pages       int `json:"pages"`
 	Results     []struct {
@@ -103,9 +85,9 @@ type TorrentSearchResponse struct {
 	} `json:"results"`
 }
 
-type UserSearchResponse struct {
+type UserSearch struct {
 	CurrentPage int `json:"currentPage"`
-    Pages       int `json:"pages"`
+	Pages       int `json:"pages"`
 	Results     []struct {
 		UserID   int    `json:"userId"`
 		Username string `json:"username"`

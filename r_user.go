@@ -1,12 +1,6 @@
 package whatapi
 
 type User struct {
-	Status   string       `json:"status"`
-	Error    string       `json:"error"`
-	Response UserResponse `json:"response"`
-}
-
-type UserResponse struct {
 	Username    string `json:"username"`
 	Avatar      string `json:"avatar"`
 	IsFriend    bool   `json:"isFriend"`

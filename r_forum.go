@@ -1,30 +1,6 @@
 package whatapi
 
 type Categories struct {
-	Status   string             `json:"status"`
-	Error    string             `json:"error"`
-	Response CategoriesResponse `json:"response"`
-}
-
-type Forum struct {
-	Status   string        `json:"status"`
-	Error    string        `json:"error"`
-	Response ForumResponse `json:"response"`
-}
-
-type Thread struct {
-	Status   string         `json:"status"`
-	Error    string         `json:"error"`
-	Response ThreadResponse `json:"response"`
-}
-
-type Subscriptions struct {
-	Status   string                `json:"status"`
-	Error    string                `json:"error"`
-	Response SubscriptionsResponse `json:"response"`
-}
-
-type CategoriesResponse struct {
 	Categories []struct {
 		CategoryID   int    `json:"categoryId"`
 		CategoryName string `json:"categoryName"`
@@ -48,7 +24,7 @@ type CategoriesResponse struct {
 	} `json:"categories"`
 }
 
-type ForumResponse struct {
+type Forum struct {
 	ForumName     string   `json:"forumName"`
 	SpecificRules []struct{
         ThreadID int `json:"threadID"`
@@ -74,7 +50,7 @@ type ForumResponse struct {
 	} `json:"threads"`
 }
 
-type ThreadResponse struct {
+type Thread struct {
 	ForumID     int `json:"forumId"`
 	ForumName   string `json:"forumName"`
 	ThreadID    int    `json:"threadId"`
@@ -119,7 +95,7 @@ type ThreadResponse struct {
 	} `json:"posts"`
 }
 
-type SubscriptionsResponse struct {
+type Subscriptions struct {
 	Threads []struct {
 		ForumID     int    `json:"forumId"`
 		ForumName   string `json:"forumName"`

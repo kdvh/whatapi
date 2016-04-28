@@ -1,12 +1,6 @@
 package whatapi
 
 type Artist struct {
-	Status   string         `json:"status"`
-	Error    string         `json:"error"`
-	Response ArtistResponse `json:"response"`
-}
-
-type ArtistResponse struct {
 	ID                   int    `json:"id"`
 	Name                 string `json:"name"`
 	NotificationsEnabled bool   `json:"notificationsEnabled"`

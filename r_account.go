@@ -1,12 +1,6 @@
 package whatapi
 
 type Account struct {
-	Status   string          `json:"status"`
-	Error    string          `json:"error"`
-	Response AccountResponse `json:"response"`
-}
-
-type AccountResponse struct {
 	Username      string `json:"username"`
 	ID            int    `json:"id"`
 	AuthKey       string `json:"authKey"`

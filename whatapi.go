@@ -1,345 +1,443 @@
+//Package whatapi is a wrapper for the What.CD JSON API (https://github.com/WhatCD/Gazelle/wiki/JSON-API-Documentation).
 package whatapi
 
 import (
 	"encoding/json"
-	"errors"
-	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
 	"strconv"
 )
 
-var (
-	ErrLoginFailed         = errors.New("Login failed")
-	ErrRequestFailed       = errors.New("Request failed")
-	ErrRequestFailedLogin  = errors.New("Request failed: not logged in")
-	ErrRequestFailedReason = func(err string) error { return fmt.Errorf("Request failed: %s", err) }
-	DebugMode              = false
-)
-
-func buildQuery(action string, params url.Values) string {
-	query := make(url.Values)
-	query.Set("action", action)
-	for param, values := range params {
-		for _, value := range values {
-			query.Set(param, value)
-		}
-	}
-	return query.Encode()
-}
-
-func buildURL(baseURL, path, query string) string {
-	u, err := url.Parse(baseURL)
-	checkErr(err)
-	u.Path = path
-	u.RawQuery = query
-	if DebugMode {
-		fmt.Println(u.String())
-	}
-	return u.String()
-}
-
-func checkErr(err error) {
-	if err != nil {
-		log.Fatal(err)
-	}
-}
-
-func checkResponseStatus(status, errorStr string) {
-	if status != "success" {
-		if errorStr != "" {
-			log.Fatal(ErrRequestFailedReason(errorStr))
-		}
-		log.Fatal(ErrRequestFailed)
-	}
-}
-
-func NewSite(url string) *Site {
-	s := new(Site)
-	s.BaseURL = url
+//NewWhatAPI creates a new client for the What.CD API using the provided URL.
+func NewWhatAPI(url string) (*WhatAPI, error) {
+	w := new(WhatAPI)
+	w.baseURL = url
 	cookieJar, err := cookiejar.New(nil)
-	checkErr(err)
-	s.Client = &http.Client{Jar: cookieJar}
-	return s
-}
-
-type Site struct {
-	BaseURL  string
-	Client   *http.Client
-	LoggedIn bool
-	Username string
-	AuthKey  string
-	PassKey  string
-}
-
-func (s *Site) GetJSON(url string, v interface{}) error {
-	if s.LoggedIn {
-		resp, err := s.Client.Get(url)
-		checkErr(err)
-		defer resp.Body.Close()
-		body, err := ioutil.ReadAll(resp.Body)
-		checkErr(err)
-		return json.Unmarshal(body, v)
+	if err != nil {
+		return w, err
 	}
-	return ErrRequestFailedLogin
+	w.client = &http.Client{Jar: cookieJar}
+	return w, err
 }
 
-func (s *Site) Login(username, password string) {
+//WhatAPI represents a client for the What.CD API.
+type WhatAPI struct {
+	baseURL  string
+	client   *http.Client
+	authkey  string
+	passkey  string
+	loggedIn bool
+}
+
+//GetJSON sends a HTTP GET request to the API and decodes the JSON response into responseObj.
+func (w *WhatAPI) GetJSON(requestURL string, responseObj interface{}) error {
+	if w.loggedIn {
+		resp, err := w.client.Get(requestURL)
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != 200 {
+			return errRequestFailedReason("Status Code " + resp.Status)
+		}
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return err
+		}
+		return json.Unmarshal(body, responseObj)
+
+	}
+	return errRequestFailedLogin
+}
+
+//CreateDownloadURL constructs a download URL using the provided torrent id. 
+func (w *WhatAPI) CreateDownloadURL(id int) (string, error) {
+	if w.loggedIn {
+        params := url.Values{}
+        params.Set("action", "download")
+        params.Set("id", strconv.Itoa(id))
+        params.Set("authkey", w.authkey)
+        params.Set("torrent_pass", w.passkey)
+        downloadURL, err := buildURL(w.baseURL, "torrents.php", "", params)
+        if err != nil {
+            return "", err
+        }
+        return downloadURL, nil
+    }
+    return "",errRequestFailedLogin
+	
+}
+
+//Login logs in to the API using the provided credentials.
+func (w *WhatAPI) Login(username, password string) error {
 	params := url.Values{}
 	params.Set("username", username)
 	params.Set("password", password)
-	resp, err := s.Client.PostForm(s.BaseURL+"login.php?", params)
-	checkErr(err)
+	resp, err := w.client.PostForm(w.baseURL+"login.php?", params)
+	if err != nil {
+			return err
+		}
 	defer resp.Body.Close()
-	if resp.Request.URL.String()[len(s.BaseURL):] != "index.php" {
-		log.Fatal(ErrLoginFailed)
+	if resp.Request.URL.String()[len(w.baseURL):] != "index.php" {
+		return errLoginFailed
 	}
-	s.LoggedIn = true
-	account := s.GetAccount()
-	s.Username = account.Username
-	s.AuthKey = account.AuthKey
-	s.PassKey = account.PassKey
+	w.loggedIn = true
+	account, err := w.GetAccount()
+    if err != nil {
+        return err
+    }
+	w.authkey, w.passkey = account.AuthKey, account.PassKey
+    return nil
 }
 
-func (s *Site) Logout() {
-	params := url.Values{"auth": {s.AuthKey}}
-	_, err := s.Client.Get(buildURL(s.BaseURL, "logout.php", params.Encode()))
-	checkErr(err)
-	s.LoggedIn, s.Username, s.AuthKey, s.PassKey = false, "", "", ""
+//Logout logs out of the API, ending the current session. 
+func (w *WhatAPI) Logout() error {
+	params := url.Values{"auth": {w.authkey}}
+    requestURL, err := buildURL(w.baseURL, "logout.php", "" , params)
+    if err != nil {
+        return err
+    }
+	_, err = w.client.Get(requestURL)
+	if err != nil {
+        return err
+    }
+	w.loggedIn, w.authkey, w.passkey = false, "", ""
+    return nil
 }
 
-func (s *Site) CreateDownloadURL(id int) string {
-	params := url.Values{}
-	params.Set("action", "download")
-	params.Set("id", strconv.Itoa(id))
-	params.Set("authkey", s.AuthKey)
-	params.Set("torrent_pass", s.PassKey)
-	return buildURL(s.BaseURL, "torrents.php", params.Encode())
+//GetAccount retrieves account information for the current user.
+func (w *WhatAPI) GetAccount() (Account, error) {
+	account := AccountResponse{}
+    requestURL, err := buildURL(w.baseURL, "ajax.php", "index", url.Values{})
+    if err != nil {
+       return account.Response, err
+    }
+	err = w.GetJSON(requestURL, &account)
+	if err != nil {
+        return account.Response, err
+    }
+	return account.Response, checkResponseStatus(account.Status, account.Error)
 }
 
-func (s *Site) GetAccount() AccountResponse {
-	account := Account{}
-	query := buildQuery("index", url.Values{})
-	err := s.GetJSON(buildURL(s.BaseURL, "ajax.php", query), &account)
-	checkErr(err)
-	checkResponseStatus(account.Status, account.Error)
-	return account.Response
+//GetMailbox retrieves mailbox information for the current user using the provided parameters.
+func (w *WhatAPI) GetMailbox(params url.Values) (Mailbox, error) {
+	mailbox := MailboxResponse{}
+	requestURL, err := buildURL(w.baseURL, "ajax.php", "inbox", params)
+    if err != nil {
+       return mailbox.Response, err
+    }
+	err = w.GetJSON(requestURL, &mailbox)
+	if err != nil {
+        return mailbox.Response, err
+    }
+	return mailbox.Response, checkResponseStatus(mailbox.Status, mailbox.Error)
 }
 
-func (s *Site) GetMailbox(params url.Values) MailboxResponse {
-	mailbox := Mailbox{}
-	query := buildQuery("inbox", params)
-	err := s.GetJSON(buildURL(s.BaseURL, "ajax.php", query), &mailbox)
-	checkErr(err)
-	checkResponseStatus(mailbox.Status, mailbox.Error)
-	return mailbox.Response
-}
-
-func (s *Site) GetConversation(id int) ConversationResponse {
-	conversation := Conversation{}
+//GetConversation retrieves conversation information for the current user using the provided conversation id and parameters.
+func (w *WhatAPI) GetConversation(id int) (Conversation, error ){
+	conversation := ConversationResponse{}
 	params := url.Values{}
 	params.Set("type", "viewconv")
 	params.Set("id", strconv.Itoa(id))
-	query := buildQuery("inbox", params)
-	err := s.GetJSON(buildURL(s.BaseURL, "ajax.php", query), &conversation)
-	checkErr(err)
-	checkResponseStatus(conversation.Status, conversation.Error)
-	return conversation.Response
+	requestURL, err := buildURL(w.baseURL, "ajax.php", "inbox", params)
+    if err != nil {
+       return conversation.Response, err
+    }
+	err = w.GetJSON(requestURL, &conversation)
+	if err != nil {
+        return conversation.Response, err
+    }
+	return conversation.Response, checkResponseStatus(conversation.Status, conversation.Error)
 }
 
-func (s *Site) GetNotifications(params url.Values) NotificationsResponse {
-	notifications := Notifications{}
-	query := buildQuery("notifications", params)
-	err := s.GetJSON(buildURL(s.BaseURL, "ajax.php", query), &notifications)
-	checkErr(err)
-	checkResponseStatus(notifications.Status, notifications.Error)
-	return notifications.Response
+//GetNotifications retrieves notification information using the specifed parameters.
+func (w *WhatAPI) GetNotifications(params url.Values) (Notifications, error) {
+    notifications := NotificationsResponse{}
+    requestURL, err := buildURL(w.baseURL, "ajax.php", "notifications", params)
+    if err != nil {
+       return notifications.Response, err
+    }
+	err = w.GetJSON(requestURL, &notifications)
+	if err != nil {
+        return notifications.Response, err
+    }
+	return notifications.Response, checkResponseStatus(notifications.Status, notifications.Error)
 }
 
-func (s *Site) GetAnnouncements() AnnouncementsResponse {
-	params := url.Values{}
-	announcements := Announcements{}
-	query := buildQuery("announcements", params)
-	err := s.GetJSON(buildURL(s.BaseURL, "ajax.php", query), &announcements)
-	checkErr(err)
-	checkResponseStatus(announcements.Status, announcements.Error)
-	return announcements.Response
+//GetAnnouncements retrieves announcement information.
+func (w *WhatAPI) GetAnnouncements() (Announcements, error) {
+    params := url.Values{}
+    announcements := AnnouncementsResponse{}
+    requestURL, err := buildURL(w.baseURL, "ajax.php", "announcements", params)
+    if err != nil {
+       return announcements.Response, err
+    }
+	err = w.GetJSON(requestURL, &announcements)
+	if err != nil {
+        return announcements.Response, err
+    }
+	return announcements.Response, checkResponseStatus(announcements.Status, announcements.Error)
 }
 
-func (s *Site) GetSubscriptions(params url.Values) SubscriptionsResponse {
-	subscriptions := Subscriptions{}
-	query := buildQuery("subscriptions", params)
-	err := s.GetJSON(buildURL(s.BaseURL, "ajax.php", query), &subscriptions)
-	checkErr(err)
-	checkResponseStatus(subscriptions.Status, subscriptions.Error)
-	return subscriptions.Response
+//GetSubscriptions retrieves forum subscription information for the current user using the provided provided.
+func (w *WhatAPI) GetSubscriptions(params url.Values)  (Subscriptions, error)  {
+	subscriptions := SubscriptionsResponse{}
+    requestURL, err := buildURL(w.baseURL, "ajax.php", "subscriptions", params)
+    if err != nil {
+       return subscriptions.Response, err
+    }
+	err = w.GetJSON(requestURL, &subscriptions)
+	if err != nil {
+        return subscriptions.Response, err
+    }
+	return subscriptions.Response, checkResponseStatus(subscriptions.Status, subscriptions.Error)
 }
 
-func (s *Site) GetCategories() CategoriesResponse {
-	categories := Categories{}
+//GetCategories retrieves forum category information.
+func (w *WhatAPI) GetCategories() (Categories, error) {
+	categories := CategoriesResponse{}
 	params := url.Values{}
 	params.Set("type", "main")
-	query := buildQuery("forum", params)
-	err := s.GetJSON(buildURL(s.BaseURL, "ajax.php", query), &categories)
-	checkErr(err)
-	checkResponseStatus(categories.Status, categories.Error)
-	return categories.Response
+    requestURL, err := buildURL(w.baseURL, "ajax.php", "forum", params)
+    if err != nil {
+       return categories.Response, err
+    }
+	err = w.GetJSON(requestURL, &categories)
+	if err != nil {
+        return categories.Response, err
+    }
+	return categories.Response, checkResponseStatus(categories.Status, categories.Error)
 }
 
-func (s *Site) GetForum(forumID int, params url.Values) ForumResponse {
-	forum := Forum{}
+//GetForum retrieves forum information using the provided forum id and parameters.
+func (w *WhatAPI) GetForum(id int, params url.Values) (Forum, error) {
+	forum := ForumResponse{}
 	params.Set("type", "viewforum")
-	params.Set("forumid", strconv.Itoa(forumID))
-	query := buildQuery("forum", params)
-	err := s.GetJSON(buildURL(s.BaseURL, "ajax.php", query), &forum)
-	checkErr(err)
-	checkResponseStatus(forum.Status, forum.Error)
-	return forum.Response
+	params.Set("forumid", strconv.Itoa(id))
+    requestURL, err := buildURL(w.baseURL, "ajax.php", "forum", params)
+    if err != nil {
+       return forum.Response, err
+    }
+	err = w.GetJSON(requestURL, &forum)
+	if err != nil {
+        return forum.Response, err
+    }
+	return forum.Response, checkResponseStatus(forum.Status, forum.Error)
 }
 
-func (s *Site) GetThread(threadID int, params url.Values) ThreadResponse {
-	thread := Thread{}
+//GetThread retrieves forum thread information using the provided thread id and parameters.
+func (w *WhatAPI) GetThread(id int, params url.Values) (Thread, error) {
+	thread := ThreadResponse{}
 	params.Set("type", "viewthread")
-	params.Set("threadid", strconv.Itoa(threadID))
-	query := buildQuery("forum", params)
-	err := s.GetJSON(buildURL(s.BaseURL, "ajax.php", query), &thread)
-	checkErr(err)
-	checkResponseStatus(thread.Status, thread.Error)
-	return thread.Response
+	params.Set("threadid", strconv.Itoa(id))
+    requestURL, err := buildURL(w.baseURL, "ajax.php", "forum", params)
+    if err != nil {
+       return thread.Response, err
+    }
+	err = w.GetJSON(requestURL, &thread)
+	if err != nil {
+        return thread.Response, err
+    }
+	return thread.Response, checkResponseStatus(thread.Status, thread.Error)
 }
 
-func (s *Site) GetArtistBookmarks() ArtistBookmarksResponse {
-	artistBookmarks := ArtistBookmarks{}
+//GetArtistBookmarks retrieves artist bookmark information for the current user.
+func (w *WhatAPI) GetArtistBookmarks() (ArtistBookmarks, error) {
+	artistBookmarks := ArtistBookmarksResponse{}
 	params := url.Values{}
 	params.Set("type", "artists")
-	query := buildQuery("bookmarks", params)
-	err := s.GetJSON(buildURL(s.BaseURL, "ajax.php", query), &artistBookmarks)
-	checkErr(err)
-	checkResponseStatus(artistBookmarks.Status, artistBookmarks.Error)
-	return artistBookmarks.Response
+    requestURL, err := buildURL(w.baseURL, "ajax.php", "bookmarks", params)
+    if err != nil {
+       return artistBookmarks.Response, err
+    }
+	err = w.GetJSON(requestURL, &artistBookmarks)
+	if err != nil {
+        return artistBookmarks.Response, err
+    }
+	return artistBookmarks.Response, checkResponseStatus(artistBookmarks.Status, artistBookmarks.Error)
 }
 
-func (s *Site) GetTorrentBookmarks() TorrentBookmarksResponse {
-	torrentBookmarks := TorrentBookmarks{}
+//GetTorrentBookmarks retrieves torrent bookmark information for the current user.
+func (w *WhatAPI) GetTorrentBookmarks() (TorrentBookmarks, error) {
+	torrentBookmarks := TorrentBookmarksResponse{}
 	params := url.Values{}
 	params.Set("type", "torrents")
-	query := buildQuery("bookmarks", params)
-	err := s.GetJSON(buildURL(s.BaseURL, "ajax.php", query), &torrentBookmarks)
-	checkErr(err)
-	checkResponseStatus(torrentBookmarks.Status, torrentBookmarks.Error)
-	return torrentBookmarks.Response
+    requestURL, err := buildURL(w.baseURL, "ajax.php", "bookmarks", params)
+    if err != nil {
+       return torrentBookmarks.Response, err
+    }
+	err = w.GetJSON(requestURL, &torrentBookmarks)
+	if err != nil {
+        return torrentBookmarks.Response, err
+    }
+	return torrentBookmarks.Response, checkResponseStatus(torrentBookmarks.Status, torrentBookmarks.Error)
 }
 
-func (s *Site) GetArtist(id int, params url.Values) ArtistResponse {
-	artist := Artist{}
+//GetArtist retrieves artist information using the provided artist id and parameters.
+func (w *WhatAPI) GetArtist(id int, params url.Values) (Artist, error) {
+	artist := ArtistResponse{}
 	params.Set("id", strconv.Itoa(id))
-	query := buildQuery("artist", params)
-	err := s.GetJSON(buildURL(s.BaseURL, "ajax.php", query), &artist)
-	checkErr(err)
-	checkResponseStatus(artist.Status, artist.Error)
-	return artist.Response
+    requestURL, err := buildURL(w.baseURL, "ajax.php", "artist", params)
+    if err != nil {
+       return artist.Response, err
+    }
+	err = w.GetJSON(requestURL, &artist)
+	if err != nil {
+        return artist.Response, err
+    }
+	return artist.Response, checkResponseStatus(artist.Status, artist.Error)
 }
 
-func (s *Site) GetRequest(id int, params url.Values) RequestResponse {
-	request := Request{}
+//GetRequest retrieves request information using the provided request id and parameters.
+func (w *WhatAPI) GetRequest(id int, params url.Values) (Request, error) {
+	request := RequestResponse{}
 	params.Set("id", strconv.Itoa(id))
-	query := buildQuery("request", params)
-	err := s.GetJSON(buildURL(s.BaseURL, "ajax.php", query), &request)
-	checkErr(err)
-	checkResponseStatus(request.Status, request.Error)
-	return request.Response
+    requestURL, err := buildURL(w.baseURL, "ajax.php", "request", params)
+    if err != nil {
+       return request.Response, err
+    }
+	err = w.GetJSON(requestURL, &request)
+	if err != nil {
+        return request.Response, err
+    }
+	return request.Response, checkResponseStatus(request.Status, request.Error)
 }
 
-func (s *Site) GetTorrent(id int, params url.Values) TorrentResponse {
-	torrent := Torrent{}
+//GetTorrent retrieves torrent information using the provided torrent id and parameters.
+func (w *WhatAPI) GetTorrent(id int, params url.Values) (Torrent, error) {
+	torrent := TorrentResponse{}
 	params.Set("id", strconv.Itoa(id))
-	query := buildQuery("torrent", params)
-	err := s.GetJSON(buildURL(s.BaseURL, "ajax.php", query), &torrent)
-	checkErr(err)
-	checkResponseStatus(torrent.Status, torrent.Error)
-	return torrent.Response
+    requestURL, err := buildURL(w.baseURL, "ajax.php", "torrent", params)
+    if err != nil {
+       return torrent.Response, err
+    }
+	err = w.GetJSON(requestURL, &torrent)
+	if err != nil {
+        return torrent.Response, err
+    }
+	return torrent.Response, checkResponseStatus(torrent.Status, torrent.Error)
 }
 
-func (s *Site) GetTorrentGroup(id int, params url.Values) TorrentGroupResponse {
-	torrentGroup := TorrentGroup{}
+//GetTorrentGroup retrieves torrent group information using the provided torrent group id and parameters.
+func (w *WhatAPI) GetTorrentGroup(id int, params url.Values) (TorrentGroup, error) {
+	torrentGroup := TorrentGroupResponse{}
 	params.Set("id", strconv.Itoa(id))
-	query := buildQuery("torrentgroup", params)
-	err := s.GetJSON(buildURL(s.BaseURL, "ajax.php", query), &torrentGroup)
-	checkErr(err)
-	checkResponseStatus(torrentGroup.Status, torrentGroup.Error)
-	return torrentGroup.Response
+    requestURL, err := buildURL(w.baseURL, "ajax.php", "torrentgroup", params)
+    if err != nil {
+       return torrentGroup.Response, err
+    }
+	err = w.GetJSON(requestURL, &torrentGroup)
+	if err != nil {
+        return torrentGroup.Response, err
+    }
+	return torrentGroup.Response, checkResponseStatus(torrentGroup.Status, torrentGroup.Error)
 }
 
-func (s *Site) SearchTorrents(searchStr string, params url.Values) TorrentSearchResponse {
-	torrentSearch := TorrentSearch{}
+//SearchTorrents retrieves torrent search results using the provided search string and parameters.
+func (w *WhatAPI) SearchTorrents(searchStr string, params url.Values) (TorrentSearch, error) {
+	torrentSearch := TorrentSearchResponse{}
 	params.Set("searchstr", searchStr)
-	query := buildQuery("browse", params)
-	err := s.GetJSON(buildURL(s.BaseURL, "ajax.php", query), &torrentSearch)
-	checkErr(err)
-	checkResponseStatus(torrentSearch.Status, torrentSearch.Error)
-	return torrentSearch.Response
+    requestURL, err := buildURL(w.baseURL, "ajax.php", "browse", params)
+    if err != nil {
+       return torrentSearch.Response, err
+    }
+	err = w.GetJSON(requestURL, &torrentSearch)
+	if err != nil {
+        return torrentSearch.Response, err
+    }
+	return torrentSearch.Response, checkResponseStatus(torrentSearch.Status, torrentSearch.Error)
 }
 
-func (s *Site) SearchRequests(searchStr string, params url.Values) RequestsSearchResponse {
-	requestsSearch := RequestsSearch{}
+//SearchRequests retrieves request search results using the provided search string and parameters.
+func (w *WhatAPI) SearchRequests(searchStr string, params url.Values) (RequestsSearch, error) {
+	requestsSearch := RequestsSearchResponse{}
 	params.Set("search", searchStr)
-	query := buildQuery("requests", params)
-	err := s.GetJSON(buildURL(s.BaseURL, "ajax.php", query), &requestsSearch)
-	checkErr(err)
-	checkResponseStatus(requestsSearch.Status, requestsSearch.Error)
-	return requestsSearch.Response
+    requestURL, err := buildURL(w.baseURL, "ajax.php", "requests", params)
+    if err != nil {
+       return requestsSearch.Response, err
+    }
+	err = w.GetJSON(requestURL, &requestsSearch)
+	if err != nil {
+        return requestsSearch.Response, err
+    }
+	return requestsSearch.Response, checkResponseStatus(requestsSearch.Status, requestsSearch.Error)
 }
 
-func (s *Site) SearchUsers(searchStr string, params url.Values) UserSearchResponse {
-	userSearch := UserSearch{}
+//SearchUsers retrieves user search results using the provided search string and parameters.
+func (w *WhatAPI) SearchUsers(searchStr string, params url.Values) (UserSearch, error) {
+	userSearch := UserSearchResponse{}
 	params.Set("search", searchStr)
-	query := buildQuery("usersearch", params)
-	err := s.GetJSON(buildURL(s.BaseURL, "ajax.php", query), &userSearch)
-	checkErr(err)
-	checkResponseStatus(userSearch.Status, userSearch.Error)
-	return userSearch.Response
+    requestURL, err := buildURL(w.baseURL, "ajax.php", "usersearch", params)
+    if err != nil {
+       return userSearch.Response, err
+    }
+	err = w.GetJSON(requestURL, &userSearch)
+	if err != nil {
+        return userSearch.Response, err
+    }
+	return userSearch.Response, checkResponseStatus(userSearch.Status, userSearch.Error)
 }
 
-func (s *Site) GetTopTenTorrents(params url.Values) TopTenTorrentsResponse {
-	topTenTorrents := TopTenTorrents{}
+//GetTopTenTorrents retrieves "top ten torrents" information using the provided parameters.
+func (w *WhatAPI) GetTopTenTorrents(params url.Values) (TopTenTorrents, error) {
+	topTenTorrents := TopTenTorrentsResponse{}
 	params.Set("type", "torrents")
-	query := buildQuery("top10", params)
-	err := s.GetJSON(buildURL(s.BaseURL, "ajax.php", query), &topTenTorrents)
-	checkErr(err)
-	checkResponseStatus(topTenTorrents.Status, topTenTorrents.Error)
-	return topTenTorrents.Response
+    requestURL, err := buildURL(w.baseURL, "ajax.php", "top10", params)
+    if err != nil {
+       return topTenTorrents.Response, err
+    }
+	err = w.GetJSON(requestURL, &topTenTorrents)
+	if err != nil {
+        return topTenTorrents.Response, err
+    }
+	return topTenTorrents.Response, checkResponseStatus(topTenTorrents.Status, topTenTorrents.Error)
 }
 
-func (s *Site) GetTopTenTags(params url.Values) TopTenTagsResponse {
-	topTenTags := TopTenTags{}
+//GetTopTenTags retrieves "top ten tags" information using the provided parameters.
+func (w *WhatAPI) GetTopTenTags(params url.Values) (TopTenTags, error) {
+    topTenTags := TopTenTagsResponse{}
 	params.Set("type", "tags")
-	query := buildQuery("top10", params)
-	err := s.GetJSON(buildURL(s.BaseURL, "ajax.php", query), &topTenTags)
-	checkErr(err)
-	checkResponseStatus(topTenTags.Status, topTenTags.Error)
-	return topTenTags.Response
+    requestURL, err := buildURL(w.baseURL, "ajax.php", "top10", params)
+    if err != nil {
+       return topTenTags.Response, err
+    }
+	err = w.GetJSON(requestURL, &topTenTags)
+	if err != nil {
+        return topTenTags.Response, err
+    }
+	return topTenTags.Response, checkResponseStatus(topTenTags.Status, topTenTags.Error)
 }
 
-func (s *Site) GetTopTenUsers(params url.Values) TopTenUsersResponse {
-	topTenUsers := TopTenUsers{}
+//GetTopTenUsers retrieves "top tem users" information using the provided parameters.
+func (w *WhatAPI) GetTopTenUsers(params url.Values) (TopTenUsers, error) {
+	topTenUsers := TopTenUsersResponse{}
 	params.Set("type", "users")
-	query := buildQuery("top10", params)
-	err := s.GetJSON(buildURL(s.BaseURL, "ajax.php", query), &topTenUsers)
-	checkErr(err)
-	checkResponseStatus(topTenUsers.Status, topTenUsers.Error)
-	return topTenUsers.Response
+    requestURL, err := buildURL(w.baseURL, "ajax.php", "top10", params)
+    if err != nil {
+       return topTenUsers.Response, err
+    }
+	err = w.GetJSON(requestURL, &topTenUsers)
+	if err != nil {
+        return topTenUsers.Response, err
+    }
+	return topTenUsers.Response, checkResponseStatus(topTenUsers.Status, topTenUsers.Error)
 }
 
-func (s *Site) GetSimilarArtists(id, limit int) SimilarArtists {
+//GetSimilarArtists retrieves similar artist information using the provided artist id and limit.
+func (w *WhatAPI) GetSimilarArtists(id, limit int) (SimilarArtists, error) {
 	similarArtists := SimilarArtists{}
 	params := url.Values{}
 	params.Set("id", strconv.Itoa(id))
 	params.Set("limit", strconv.Itoa(limit))
-	query := buildQuery("similar_artists", params)
-	err := s.GetJSON(buildURL(s.BaseURL, "ajax.php", query), &similarArtists)
-	checkErr(err)
-	return similarArtists
+    requestURL, err := buildURL(w.baseURL, "ajax.php", "similar_artists", params)
+    if err != nil {
+       return similarArtists, err
+    }
+	err = w.GetJSON(requestURL, &similarArtists)
+	if err != nil {
+        return similarArtists, err
+    }
+	return similarArtists, nil
 }

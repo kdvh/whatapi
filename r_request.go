@@ -1,12 +1,6 @@
 package whatapi
 
 type Request struct {
-	Status   string          `json:"status"`
-	Error    string          `json:"error"`
-	Response RequestResponse `json:"response"`
-}
-
-type RequestResponse struct {
 	RequestID       int     `json:"requestId"`
 	RequestiorID    int     `json:"requestorId"`
 	RequestorName   string  `json:"requestorName"`

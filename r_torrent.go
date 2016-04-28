@@ -1,12 +1,6 @@
 package whatapi
 
 type Torrent struct {
-	Status   string          `json:"status"`
-	Error    string          `json:"error"`
-	Response TorrentResponse `json:"response"`
-}
-
-type TorrentResponse struct {
 	Group   GroupType `json:"group"`
 	Torrent TorrentType `json:"torrent"`
 }

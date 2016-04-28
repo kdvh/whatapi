@@ -1,12 +1,6 @@
 package whatapi
 
 type Notifications struct {
-	Status   string                `json:"status"`
-	Error    string                `json:"error"`
-	Response NotificationsResponse `json:"response"`
-}
-
-type NotificationsResponse struct {
 	CurrentPages int `json:"currentPages"`
 	Pages        int `json:"pages"`
 	NumNew       int `json:"numNew"`

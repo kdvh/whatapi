@@ -3,26 +3,48 @@ whatapi
 
 A Go wrapper for the What.CD [JSON API](https://github.com/WhatCD/Gazelle/wiki/JSON-API-Documentation)
 
+
+Install
+-------
+
+```
+go get "github.com/kdvh/whatapi"
+```
+
 Example
 -------
 ```Go
-        wcd := whatapi.NewSite("https://what.cd/")
-        wcd.Login("username", "password")
+    wcd, err := whatapi.NewWhatAPI("https://what.cd/")
+    if err != nil {
+        log.Fatal(err)
+    }
+    err = wcd.Login("username","password")
+    if err != nil {
+        log.Fatal(err)
+    }
+    mailboxParams := url.Values{}
+    mailboxParams.Set("type", "sentbox")
+    mailbox, err := wcd.GetMailbox(mailboxParams)
+    if err != nil {
+        log.Fatal(err)
+    }
+    log.Println(mailbox)
 
-        account := wcd.GetAccount()
-        fmt.Println(account.Username)
+    conversation, err := wcd.GetConversation(mailbox.Messages[0].ConvID)
+    if err != nil {
+        log.Fatal(err)
+    }      
+    log.Println(conversation.Messages[0].Body)
+        
+    torrentSearchParams := url.Values{}
+    torrentSearch, err := wcd.SearchTorrents("Tool",torrentSearchParams)
+    if err != nil {
+        log.Fatal(err)
+    }
 
-        user := wcd.GetUser(100)
-        fmt.Println(user.Username)
-
-        mailboxParams := url.Values{}
-        mailboxParams.Set("type", "sentbox")
-        mailbox := wcd.GetMailbox(mailboxParams)
-        conversation := wcd.GetConversation(mailbox.Messages[0].ConvID)
-        fmt.Println(conversation.Messages[0].Body)
-
-        torrentParams := url.Values{}
-        torrent := wcd.GetTorrent(31929409, torrentParams)
-        fmt.Println(wcd.CreateDownloadURL(torrent.Torrent.ID))
-
+    downloadURL, err := wcd.CreateDownloadURL(torrentSearch.Results[0].Torrents[0].TorrentID)
+    if err != nil {
+        log.Fatal(downloadURL)
+    }
+    log.Println(downloadURL)
 ```

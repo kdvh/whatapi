@@ -11,7 +11,7 @@ import (
 )
 
 //NewWhatAPI creates a new client for the What.CD API using the provided URL.
-func NewWhatAPI(url string) (*WhatAPI, error) {
+func NewWhatAPI(url string) (*WhatAPI, error) {p[r]
 	w := new(WhatAPI)
 	w.baseURL = url
 	cookieJar, err := cookiejar.New(nil)
@@ -181,7 +181,7 @@ func (w *WhatAPI) GetAnnouncements() (Announcements, error) {
 	return announcements.Response, checkResponseStatus(announcements.Status, announcements.Error)
 }
 
-//GetSubscriptions retrieves forum subscription information for the current user using the provided provided.
+//GetSubscriptions retrieves forum subscription information for the current user using the provided parameters.
 func (w *WhatAPI) GetSubscriptions(params url.Values) (Subscriptions, error) {
 	subscriptions := SubscriptionsResponse{}
 	requestURL, err := buildURL(w.baseURL, "ajax.php", "subscriptions", params)

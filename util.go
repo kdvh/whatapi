@@ -1,10 +1,9 @@
 package whatapi
 
 import (
-    "errors"
-    "net/url"
-    "fmt"
-    
+	"errors"
+	"fmt"
+	"net/url"
 )
 
 var (
@@ -18,13 +17,13 @@ var (
 func buildURL(baseURL, path, action string, params url.Values) (string, error) {
 	u, err := url.Parse(baseURL)
 	if err != nil {
-        return "", err
-    }
+		return "", err
+	}
 	u.Path = path
-    query := make(url.Values)
-    if action != "" {
-	    query.Set("action", action)
-    }
+	query := make(url.Values)
+	if action != "" {
+		query.Set("action", action)
+	}
 	for param, values := range params {
 		for _, value := range values {
 			query.Set(param, value)
@@ -44,6 +43,5 @@ func checkResponseStatus(status, errorStr string) error {
 		}
 		return errRequestFailed
 	}
-    return nil
+	return nil
 }
-

@@ -14,7 +14,7 @@ go get "github.com/kdvh/whatapi"
 Example
 -------
 ```Go
-    	wcd, err := whatapi.NewWhatAPI("https://what.cd/")
+	wcd, err := whatapi.NewWhatAPI("https://what.cd/")
 	if err != nil {
 		log.Fatal(err)
 	}

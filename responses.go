@@ -3,7 +3,7 @@ package whatapi
 type AccountResponse struct {
 	Status   string  `json:"status"`
 	Error    string  `json:"error"`
-    Response Account `json:"response"`
+	Response Account `json:"response"`
 }
 
 type AnnouncementsResponse struct {

@@ -11,7 +11,7 @@ import (
 )
 
 //NewWhatAPI creates a new client for the What.CD API using the provided URL.
-func NewWhatAPI(url string) (*WhatAPI, error) {p[r]
+func NewWhatAPI(url string) (*WhatAPI, error) {
 	w := new(WhatAPI)
 	w.baseURL = url
 	cookieJar, err := cookiejar.New(nil)

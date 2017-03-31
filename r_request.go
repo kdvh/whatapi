@@ -37,13 +37,13 @@ type Request struct {
 		Conductor []string `json:"conductor"`
 		RemixedBy []string `json:"remixedBy"`
 		Producer  []string `json:"producer"`
-	} `json"musicInfo"`
+	} `json:"musicInfo"`
 	CatalogueNumber string   `json:"catalogueNumber"`
 	ReleaseType     int      `json:"releaseType"`
 	ReleaseName     string   `json:"releaseName"`
-	BitrateList     []string   `json:"bitrateList"`
-	FormatList      []string   `json:"formatList"`
-	MediaList       []string   `json:"mediaList"`
+	BitrateList     []string `json:"bitrateList"`
+	FormatList      []string `json:"formatList"`
+	MediaList       []string `json:"mediaList"`
 	LogCue          string   `json:"logCue"`
 	IsFilled        bool     `json:"isFilled"`
 	FillerID        int      `json:"fillerID"`

@@ -1,7 +1,7 @@
 package whatapi
 
 type Torrent struct {
-	Group   GroupType `json:"group"`
+	Group   GroupType   `json:"group"`
 	Torrent TorrentType `json:"torrent"`
 }
 
@@ -19,9 +19,15 @@ type GroupType struct {
 	Time            string `json:"time"`
 	VanityHouse     bool   `json:"vanityHouse"`
 	MusicInfo       struct {
-		Composers []string `json:"composers"`
-		DJ        []string `json:"dj"`
-		Artists   []struct {
+		Composers []struct {
+			ID   int    `json:"id"`
+			Name string `json:"name"`
+		} `json:"composers"`
+		DJ []struct {
+			ID   int    `json:"id"`
+			Name string `json:"name"`
+		} `json:"dj"`
+		Artists []struct {
 			ID   int    `json:"id"`
 			Name string `json:"name"`
 		}
@@ -29,11 +35,20 @@ type GroupType struct {
 			ID   int    `json:"id"`
 			Name string `json:"name"`
 		} `json:"with"`
-		Conductor []string `json:"conductor"`
-		RemixedBy []string `json:"remixedBy"`
-		Producer  []string `json:"producer"`
-	} `json"musicInfo"`
-	Tags []string `json"tags"`
+		Conductor []struct {
+			ID   int    `json:"id"`
+			Name string `json:"name"`
+		} `json:"conductor"`
+		RemixedBy []struct {
+			ID   int    `json:"id"`
+			Name string `json:"name"`
+		} `json:"remixedBy"`
+		Producer []struct {
+			ID   int    `json:"id"`
+			Name string `json:"name"`
+		} `json:"producer"`
+	} `json:"musicInfo"`
+	Tags []string `json:"tags"`
 }
 
 type TorrentType struct {

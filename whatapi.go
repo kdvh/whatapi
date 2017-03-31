@@ -8,12 +8,14 @@ import (
 	"net/http/cookiejar"
 	"net/url"
 	"strconv"
+	"strings"
 )
 
 //NewWhatAPI creates a new client for the What.CD API using the provided URL.
-func NewWhatAPI(url string) (*WhatAPI, error) {
+func NewWhatAPI(url, agent string) (*WhatAPI, error) {
 	w := new(WhatAPI)
 	w.baseURL = url
+	w.userAgent = agent
 	cookieJar, err := cookiejar.New(nil)
 	if err != nil {
 		return w, err
@@ -24,50 +26,79 @@ func NewWhatAPI(url string) (*WhatAPI, error) {
 
 //WhatAPI represents a client for the What.CD API.
 type WhatAPI struct {
-	baseURL  string
-	client   *http.Client
-	authkey  string
-	passkey  string
-	loggedIn bool
+	baseURL   string
+	userAgent string
+	client    *http.Client
+	authkey   string
+	passkey   string
+	loggedIn  bool
 }
 
 //GetJSON sends a HTTP GET request to the API and decodes the JSON response into responseObj.
 func (w *WhatAPI) GetJSON(requestURL string, responseObj interface{}) error {
-	if w.loggedIn {
-		resp, err := w.client.Get(requestURL)
-		if err != nil {
-			return err
-		}
-		defer resp.Body.Close()
-		if resp.StatusCode != 200 {
-			return errRequestFailedReason("Status Code " + resp.Status)
-		}
-		body, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return err
-		}
-		return json.Unmarshal(body, responseObj)
-
+	if !w.loggedIn {
+		return errRequestFailedLogin
 	}
-	return errRequestFailedLogin
+
+	req, err := http.NewRequest("GET", requestURL, nil)
+	req.Header.Set("User-Agent", w.userAgent)
+	if err != nil {
+		return err
+	}
+	resp, err := w.client.Do(req)
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return errRequestFailedReason("Status Code " + resp.Status)
+	}
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	var st GenericResponse
+	if err := json.Unmarshal(body, &st); err != nil {
+		return err
+	}
+
+	if err := checkResponseStatus(st.Status, st.Error); err != nil {
+		return err
+	}
+	return json.Unmarshal(body, responseObj)
+}
+
+type GenericResponse struct {
+	Status string `json:"status"`
+	Error  string `json:"error"`
+}
+
+func (w *WhatAPI) Do(action string, params url.Values, result interface{}) error {
+	requestURL, err := buildURL(w.baseURL, "ajax.php", action, params)
+	if err != nil {
+		return err
+	}
+	return w.GetJSON(requestURL, result)
 }
 
 //CreateDownloadURL constructs a download URL using the provided torrent id.
 func (w *WhatAPI) CreateDownloadURL(id int) (string, error) {
-	if w.loggedIn {
-		params := url.Values{}
-		params.Set("action", "download")
-		params.Set("id", strconv.Itoa(id))
-		params.Set("authkey", w.authkey)
-		params.Set("torrent_pass", w.passkey)
-		downloadURL, err := buildURL(w.baseURL, "torrents.php", "", params)
-		if err != nil {
-			return "", err
-		}
-		return downloadURL, nil
+	if !w.loggedIn {
+		return "", errRequestFailedLogin
 	}
-	return "", errRequestFailedLogin
 
+	params := url.Values{}
+	params.Set("action", "download")
+	params.Set("id", strconv.Itoa(id))
+	params.Set("authkey", w.authkey)
+	params.Set("torrent_pass", w.passkey)
+	downloadURL, err := buildURL(w.baseURL, "torrents.php", "", params)
+	if err != nil {
+		return "", err
+	}
+	return downloadURL, nil
 }
 
 //Login logs in to the API using the provided credentials.
@@ -75,10 +106,16 @@ func (w *WhatAPI) Login(username, password string) error {
 	params := url.Values{}
 	params.Set("username", username)
 	params.Set("password", password)
-	resp, err := w.client.PostForm(w.baseURL+"login.php?", params)
+
+	reqBody := strings.NewReader(params.Encode())
+	req, err := http.NewRequest("POST", w.baseURL+"login.php", reqBody)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("User-Agent", w.userAgent)
+	resp, err := w.client.Do(req)
 	if err != nil {
 		return err
 	}
+
 	defer resp.Body.Close()
 	if resp.Request.URL.String()[len(w.baseURL):] != "index.php" {
 		return errLoginFailed
